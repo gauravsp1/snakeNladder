@@ -3,33 +3,43 @@ import "./Board.css";
 
 function Board() {
   const [numPlayers, setNumPlayers] = useState(2);
-  const [positions, setPositions] = useState(Array(numPlayers).fill(0));
-  const [turn, setTurn] = useState(0);
+  const [positions, setPositions] = useState(Array(numPlayers).fill(1));
+  const [currentPlayer, setCurrentPlayer] = useState(0);
   const [message, setMessage] = useState("");
   const [dice, setDice] = useState(null);
   const [endGame, setEndGame] = useState(false);
 
   const snakesAndLadders = {
     snakes: { 17: 7, 54: 34, 62: 19, 98: 79 },
-    ladders: { 3: 22, 5: 8, 20: 29, 27: 1, 45: 75, 70: 91, 79: 99 },
+    ladders: { 3: 22, 5: 8, 20: 29, 27: 51, 45: 75, 70: 91, 79: 99 },
   };
   const checkWin = () => {
-    if (positions[turn] >= 99) {
-      setMessage(`Player ${turn + 1} wins!`);
-      return true;
+    for (let i = 0; i < positions.length; i++) {
+      if (positions[i] >= 100) {
+        setMessage(`Player ${i + 1} wins!`);
+        return true;
+      }
     }
+
     return false;
   };
 
   const handleRoll = () => {
     const rollDice = Math.floor(Math.random() * 6) + 1;
+
     setDice(rollDice);
 
-    let newPosition = positions[turn] + rollDice;
+    if (positions[currentPlayer] === 1 && rollDice !== 6) {
+      setCurrentPlayer((prevTurn) => (prevTurn + 1) % numPlayers);
+      return;
+    }
+
+    let newPosition = positions[currentPlayer] + rollDice;
     let newPositions = [...positions];
 
     if (newPosition >= 100) {
       newPosition = 100;
+      setMessage(`Player ${currentPlayer + 1} wins!`);
     }
 
     if (newPosition in snakesAndLadders.snakes) {
@@ -37,51 +47,70 @@ function Board() {
     } else if (newPosition in snakesAndLadders.ladders) {
       newPosition = snakesAndLadders.ladders[newPosition];
     }
-    newPositions[turn] = newPosition;
+    newPositions[currentPlayer] = newPosition;
+
     setPositions(newPositions);
-    setTurn((prevTurn) => (prevTurn + 1) % numPlayers);
+    setCurrentPlayer((prevTurn) => (prevTurn + 1) % numPlayers);
   };
 
   const handleNumPlayersChange = (e) => {
     const num = Number(e.target.value);
     setNumPlayers(num);
-    setPositions(Array(num).fill(0));
-    setTurn(0);
+    setPositions(Array(num).fill(1));
+    setCurrentPlayer(0);
     setMessage("");
   };
 
-  const displayBox = (indexValue) => {
-    const cellNum = 100 - indexValue;
-    const isSnake = Object.keys(snakesAndLadders.snakes).includes(
-      indexValue.toString()
-    );
-    const isLadder = Object.keys(snakesAndLadders.ladders).includes(
-      indexValue.toString()
-    );
+  const displayBox = () => {
+    const cells = [];
+    let number = 100;
 
-    return (
-      <div className="main-box">
-        <div className="box-number"> {cellNum}</div>
-        <div className="snake-ladder">
-          {`${isSnake ? "S" : isLadder ? "L" : ""}`}
+    for (let row = 0; row < 10; row++) {
+      const rowCells = [];
+
+      for (let col = 0; col < 10; col++) {
+        const isSnake = Object.keys(snakesAndLadders.snakes).includes(
+          number.toString()
+        );
+        const isLadder = Object.keys(snakesAndLadders.ladders).includes(
+          number.toString()
+        );
+        rowCells.push(
+          <div key={number} className="boxes">
+            <div className="main-box">
+              <div className="box-number"> {number}</div>
+              <div className="snake-ladder">
+                {`${isSnake ? "S" : isLadder ? "L" : ""}`}
+              </div>
+              <div className="player-container">
+                {positions.map((player, index) => {
+                  return (
+                    player === number && (
+                      <div className="player">{`P${index + 1}`}</div>
+                    )
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+        number--;
+      }
+
+      if (row % 2 === 1) rowCells.reverse();
+      cells.push(
+        <div key={row} className="row">
+          {rowCells}
         </div>
-        <div className="player-container">
-          {positions.map((player, index) => {
-            return (
-              player === cellNum - 1 && (
-                <div className="player">{`P${index + 1}`}</div>
-              )
-            );
-          })}
-        </div>
-      </div>
-    );
+      );
+    }
+    return cells;
   };
 
   useEffect(() => {
     const value = checkWin();
     setEndGame(value);
-  }, [dice]);
+  }, [positions]);
 
   return (
     <div className="main-container">
@@ -97,7 +126,7 @@ function Board() {
         </select>
       </label>
       <div className="controls">
-        <p>Turn: Player {turn + 1}</p>
+        <p>Turn: Player {currentPlayer + 1}</p>
         <button
           onClick={() => {
             if (!endGame) {
@@ -110,23 +139,8 @@ function Board() {
         <p>Dice Roll: {dice}</p>
         <p>{message}</p>
       </div>
-      <div className="board">
-        {[...Array(100)].map((_, index) => {
-          return positions.map(
-            (pos, idx) =>
-              pos === index + 1 && <div key={idx}>{`P${idx + 1}`}</div>
-          );
-        })}
-      </div>
-      <div className="board">
-        {[...Array(100)].map((_, index) => {
-          return (
-            <div key={index} className="boxes">
-              {displayBox(index)}
-            </div>
-          );
-        })}
-      </div>
+
+      <div className="board">{displayBox()}</div>
     </div>
   );
 }
